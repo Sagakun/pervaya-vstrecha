@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Первая встреча</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #EAF0E3;
+    --surface: #FFFFFF;
+    --surface-alt: #F5F3E8;
+    --ink: #22301D;
+    --ink-soft: #5C6656;
+    --line: #C7CDB8;
+    --accent: #6FA83A;
+    --accent-dark: #4C7A26;
+    --fail: #C1503F;
+    --client-bubble: #F1EEE0;
+    --manager-bubble: #DCEEC5;
+    --rare: #9B6BB0;
+    --gold: #C99A3A;
+    --info: #4A7C8C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+  .app { max-width: 1120px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; border-bottom: 2px solid var(--line); padding-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .topbar .brand { font-family: 'Fredoka', sans-serif; font-weight: 700; font-size: 24px; }
+  .topbar .meta { font-size: 14px; color: var(--ink-soft); }
+  .topbar-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+  .auth-gate { position: fixed; inset: 0; background: rgba(34,48,29,0.55); display: none; align-items: center; justify-content: center; z-index: 50; }
+  .auth-card { background: var(--surface); border-radius: 18px 18px 18px 4px; padding: 28px; max-width: 360px; width: 90%; }
+  .auth-card h2 { font-family: 'Fredoka', sans-serif; font-size: 18px; margin: 0 0 8px; }
+  .auth-card p { font-size: 13px; color: var(--ink-soft); margin: 0 0 16px; line-height: 1.5; }
+  .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .auth-tab { flex: 1; padding: 8px; text-align: center; border-radius: 10px; border: 2px solid var(--line); background: var(--surface-alt); font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 13px; cursor: pointer; }
+  .auth-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .auth-card input { width: 100%; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-alt); font-family: 'Inter', sans-serif; font-size: 14px; margin-bottom: 12px; box-sizing: border-box; }
+  .auth-card input:focus { outline: none; border-color: var(--accent); }
+  .auth-card button.submit { width: 100%; }
+  .auth-error { color: var(--fail); font-size: 13px; margin: -4px 0 12px; min-height: 16px; }
+
+  .scope-note { font-size: 13px; color: var(--ink-soft); margin-bottom: 22px; line-height: 1.5; max-width: 680px; }
+
+  .level-up-banner, .notice-banner {
+    font-family: 'Fredoka', sans-serif; font-weight: 600; color: white;
+    border-radius: 4px 16px 16px 16px; padding: 12px 18px; margin-bottom: 18px; font-size: 14px;
+  }
+  .level-up-banner { background: var(--gold); }
+  .notice-banner { background: var(--info); }
+
+  .layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .panel { background: var(--surface); border: 2px solid var(--line); padding: 18px 20px; }
+  .panel h3 { font-family: 'Fredoka', sans-serif; font-size: 14px; margin: 0 0 12px; }
+
+  .level-panel { border-radius: 18px 18px 18px 4px; }
+  .level-badge {
+    display: inline-block; font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 13px;
+    padding: 4px 12px; border-radius: 999px; background: var(--accent); color: white; margin-bottom: 8px;
+  }
+  .level-badge.mid { background: var(--gold); }
+  .level-badge.top { background: var(--rare); }
+  .level-panel .day-line { font-size: 13px; color: var(--ink-soft); }
+
+  .plan-panel { border-radius: 4px 18px 4px 18px; }
+  .plan-bar-wrap { height: 8px; background: var(--surface-alt); border-radius: 4px; overflow: hidden; margin: 8px 0; }
+  .plan-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.4s ease; }
+  .plan-panel .plan-line { font-size: 13px; color: var(--ink-soft); }
+
+  .stats-panel { border-radius: 18px 4px 18px 18px; }
+  .kpi-row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .kpi-row:first-of-type { border-top: none; }
+
+  .main-panel { background: var(--surface); border: 2px solid var(--line); border-radius: 18px; min-height: 560px; display: flex; flex-direction: column; }
+
+  #officeView { padding: 22px; opacity: 0; animation: fadein 0.35s ease forwards; }
+  @keyframes fadein { to { opacity: 1; } }
+  #officeView h2 { font-family: 'Fredoka', sans-serif; font-size: 16px; margin: 0 0 12px; }
+  .empty-note { font-size: 13px; color: var(--ink-soft); padding: 10px 0 20px; }
+  .next-day-row { text-align: right; }
+
+  .office-map { position: relative; height: 300px; background: var(--surface-alt); border: 2px solid var(--line); border-radius: 4px 18px 18px 18px; margin-bottom: 18px; overflow: hidden; }
+  .map-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .map-lines line { stroke: var(--line); stroke-width: 0.6; stroke-dasharray: 2 2; }
+  .map-desk { position: absolute; transform: translate(-50%, -50%); text-align: center; font-size: 24px; }
+  .node-label { font-size: 10px; color: var(--ink-soft); }
+  .map-avatar { position: absolute; transform: translate(-50%, -50%); font-size: 20px; transition: left 0.45s ease, top 0.45s ease; z-index: 5; pointer-events: none; }
+  .map-node {
+    position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 2px;
+    background: var(--surface); border: 2px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 8px 10px;
+    cursor: pointer; font-family: 'Fredoka', sans-serif;
+  }
+  .map-node:disabled { cursor: default; opacity: 0.55; }
+  .map-node.node-done-ok { border-color: var(--accent); }
+  .map-node.node-done-fail { border-color: var(--fail); }
+  .map-node .node-icon { font-size: 18px; }
+  .map-node .node-label { max-width: 92px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .urgent-dot { position: absolute; top: -6px; right: -8px; font-size: 12px; }
+
+  .lead-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+  .lead-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    border: 2px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 12px 16px; background: var(--surface-alt);
+  }
+  .lead-row .tag { font-size: 11px; color: var(--ink-soft); }
+  .lead-row .tag.rare { color: var(--rare); font-weight: 600; }
+  .lead-row h4 { font-family: 'Fredoka', sans-serif; font-size: 14px; margin: 2px 0; }
+  .lead-row p { font-size: 12px; color: var(--ink-soft); margin: 0; }
+  .me-row { border-color: var(--accent); background: var(--manager-bubble); }
+  .active-sort { background: var(--accent) !important; color: white !important; border-color: var(--accent) !important; }
+
+  button {
+    font-family: 'Fredoka', sans-serif; font-weight: 600; font-size: 14px;
+    border-radius: 12px; padding: 10px 18px; cursor: pointer; border: 2px solid transparent;
+  }
+  button:disabled { cursor: not-allowed; opacity: 0.5; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
+  .btn-secondary { background: transparent; border-color: var(--ink); color: var(--ink); }
+  .btn-secondary:hover:not(:disabled) { background: var(--surface-alt); }
+  .btn-small { padding: 6px 14px; font-size: 13px; }
+
+  #encounterView { display: none; flex-direction: column; flex: 1; }
+  .chat-header { padding: 14px 20px; border-bottom: 2px solid var(--line); font-size: 14px; color: var(--ink-soft); transition: transform 0.1s; }
+  .chat-header.success { color: var(--accent-dark); font-weight: 600; }
+  .chat-header.fail { color: var(--fail); font-weight: 600; }
+  @keyframes pulseSuccess { 0% { transform: scale(1); } 30% { transform: scale(1.03); } 100% { transform: scale(1); } }
+  @keyframes shakeFail { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .pulse-success { animation: pulseSuccess 0.4s ease; }
+  .shake-fail { animation: shakeFail 0.4s ease; }
+
+  .stage-tracker { display: none; flex-wrap: wrap; gap: 6px; padding: 12px 20px 0; }
+  .stage-tracker.visible { display: flex; }
+  .stage-pill { font-size: 11px; padding: 4px 10px; border-radius: 999px; background: var(--surface-alt); color: var(--ink-soft); }
+  .stage-pill.done { background: var(--manager-bubble); color: var(--ink); }
+  .stage-pill.active { background: var(--accent); color: white; font-weight: 600; }
+  .chat-messages { flex: 1; padding: 16px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; max-height: 360px; }
+  .msg { max-width: 75%; display: flex; flex-direction: column; }
+  .msg.manager { align-self: flex-end; align-items: flex-end; }
+  .msg.client { align-self: flex-start; align-items: flex-start; }
+  .msg .label { font-size: 11px; color: var(--ink-soft); margin-bottom: 3px; padding: 0 4px; }
+  .msg .bubble { padding: 10px 14px; font-size: 14px; line-height: 1.4; }
+  .msg.manager .bubble { background: var(--manager-bubble); border-radius: 16px 16px 4px 16px; }
+  .msg.client .bubble { background: var(--client-bubble); border-radius: 16px 16px 16px 4px; }
+  .msg.system .bubble { background: transparent; color: var(--ink-soft); font-size: 12px; font-style: italic; }
+  .msg.typing .bubble { color: var(--ink-soft); font-style: italic; }
+  .progress-bar-wrap { height: 5px; background: var(--surface-alt); margin: 0 20px; border-radius: 3px; overflow: hidden; }
+  .progress-bar { height: 100%; width: 0%; background: var(--accent); transition: width 0.4s ease; }
+  .chat-input-row { display: flex; gap: 10px; padding: 16px 20px; }
+  .chat-input-row input { flex: 1; font-family: 'Inter', sans-serif; font-size: 14px; padding: 10px 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface-alt); }
+  .chat-input-row input:focus { outline: none; border-color: var(--accent); }
+  .post-call-actions { display: flex; gap: 10px; padding: 0 20px 20px; flex-wrap: wrap; }
+  .review-panel { margin: 0 20px 20px; padding: 14px 16px; background: var(--surface-alt); border-radius: 4px 18px 18px 18px; font-size: 13px; line-height: 1.6; }
+
+  #monthSummaryView { display: none; padding: 26px; }
+  #monthSummaryView h2 { font-family: 'Fredoka', sans-serif; font-size: 18px; margin: 0 0 16px; }
+  .summary-row { display: flex; justify-content: space-between; font-size: 14px; padding: 8px 0; border-top: 1px solid var(--line); }
+  .summary-row:first-of-type { border-top: none; }
+  .summary-row.total { font-weight: 700; font-family: 'Fredoka', sans-serif; font-size: 15px; border-top: 2px solid var(--ink); margin-top: 6px; padding-top: 12px; }
+
+  #leaderboardView h2 { font-family: 'Fredoka', sans-serif; font-size: 16px; margin: 0 0 4px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">🤝 Первая встреча</div>
+    <div class="topbar-right">
+      <span class="meta" id="topMeta">Месяц 1, день 1</span>
+      <span class="meta" id="nicknameMeta"></span>
+      <button class="btn-secondary btn-small" id="logoutBtn" style="display:none;">Выйти</button>
+      <button class="btn-secondary btn-small" id="leaderboardBtn">🏆 Таблица лидеров</button>
+    </div>
+  </div>
+  <div class="scope-note">
+    Полный игровой цикл: звонки и встречи ведёт ИИ-клиент через сервер (ключ Anthropic не хранится в браузере), прогресс и лидерборд сохраняются в базе данных на сервере — можно зайти с любого устройства под своим логином. Месяц короче реального (5 дней) — для темпа демо.
+  </div>
+  <div class="level-up-banner" id="levelUpBanner" style="display:none;"></div>
+  <div class="notice-banner" id="noticeBanner" style="display:none;"></div>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section class="panel level-panel">
+        <h3>Карьера</h3>
+        <span class="level-badge" id="levelBadge">Junior</span>
+        <div class="day-line" id="dayLine">Месяц 1, день 1 из 5</div>
+      </section>
+      <section class="panel plan-panel">
+        <h3>План на месяц</h3>
+        <div class="plan-line" id="planLine">0 ₸ из 400 000 ₸</div>
+        <div class="plan-bar-wrap"><div class="plan-bar" id="planBar"></div></div>
+        <div class="plan-line" id="planPct">0%</div>
+      </section>
+      <section class="panel stats-panel">
+        <h3>Показатели за всё время</h3>
+        <div class="kpi-row"><span>Звонков сделано</span><strong id="kpiCalls">0</strong></div>
+        <div class="kpi-row"><span>Встреч назначено</span><strong id="kpiMeetingsBooked">0</strong></div>
+        <div class="kpi-row"><span>Сделок закрыто</span><strong id="kpiDeals">0</strong></div>
+        <div class="kpi-row"><span>Объём всего</span><strong id="kpiVolume">0 ₸</strong></div>
+        <div class="kpi-row"><span>Текущая серия побед</span><strong id="kpiStreak">0</strong></div>
+      </section>
+    </aside>
+
+    <section class="main-panel">
+      <div id="officeView"></div>
+      <div id="encounterView">
+        <div class="chat-header" id="chatStatus"></div>
+        <div class="stage-tracker" id="stageTracker"></div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="chat-input-row">
+          <input id="chatInput" placeholder="Что скажешь клиенту?" disabled />
+          <button class="btn-primary" id="sendBtn" disabled>Отправить</button>
+        </div>
+        <div class="post-call-actions" id="postCallActions" style="display:none;"></div>
+        <div class="review-panel" id="reviewPanel" style="display:none;"></div>
+      </div>
+      <div id="monthSummaryView"></div>
+      <div id="leaderboardView" style="display:none; padding:22px;"></div>
+    </section>
+  </div>
+</div>
+
+<div class="auth-gate" id="authGate">
+  <div class="auth-card">
+    <h2 id="authTitle">Вход</h2>
+    <p>Настоящий аккаунт с паролем — прогресс и место в общем рейтинге сохраняются на сервере.</p>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tabLogin">Войти</div>
+      <div class="auth-tab" id="tabRegister">Зарегистрироваться</div>
+    </div>
+    <input id="authUsername" placeholder="Имя" autocomplete="username" />
+    <input id="authPassword" type="password" placeholder="Пароль" autocomplete="current-password" />
+    <div class="auth-error" id="authError"></div>
+    <button class="btn-primary submit" id="authSubmit">Войти</button>
+  </div>
+</div>
+
+<script>
+const DAYS_PER_MONTH = 5;
+
+const LEVELS = [
+  { name: 'Junior', dealsRequired: 0, archetypes: ['skeptic','price','gatekeeper_busy','regional','emotional','silent_type','overly_friendly'], planBase: 400000, badgeCls: '' },
+  { name: 'Middle', dealsRequired: 2, archetypes: ['skeptic','price','gatekeeper_busy','regional','emotional','silent_type','overly_friendly','tough_negotiator','burned_by_2gis'], planBase: 600000, badgeCls: 'mid' },
+  { name: 'Senior', dealsRequired: 5, archetypes: ['skeptic','price','gatekeeper_busy','regional','emotional','silent_type','overly_friendly','tough_negotiator','burned_by_2gis','big_chain','analytical_young'], planBase: 850000, badgeCls: 'mid' },
+  { name: 'Руководитель', dealsRequired: 9, archetypes: ['skeptic','price','gatekeeper_busy','regional','emotional','silent_type','overly_friendly','tough_negotiator','burned_by_2gis','big_chain','analytical_young'], planBase: 1100000, badgeCls: 'top' }
+];
+
+const archetypeDefs = {
+  skeptic: { company: '«Ромашка», сеть аптек', category: 'Аптеки', label: 'Скептик-старожил', hint: 'Уже рекламировался, разочарован результатом', rare: false, volumeRange: [70000, 130000],
+    text: 'Ты — ЛПР, который уже раньше размещал рекламу в 2GIS (или похожем сервисе), но остался недоволен результатом или прошлым менеджером. Тебе нужны веские аргументы и конкретика, а не общие фразы.' },
+  price: { company: '«АвтоМир», автосервис', category: 'Автосервисы', label: '«Дорого / в следующем месяце»', hint: 'Тянет время, ссылается на бюджет', rare: false, volumeRange: [60000, 110000],
+    text: 'Ты — ЛПР, который сразу говорит, что сейчас не время тратить бюджет, и предлагаешь вернуться к разговору «в следующем месяце». Тебя интересует цена и выгода, ты любишь тянуть время.' },
+  gatekeeper_busy: { company: '«Сакура», ресторан', category: 'Рестораны', label: 'Занятой ЛПР', hint: 'Мало времени, просит всё «в WhatsApp»', rare: false, volumeRange: [80000, 140000],
+    text: 'Ты — очень занятой ЛПР, у тебя мало времени на разговоры, ты постоянно намекаешь, что тебе пора идти, и предпочитаешь получить всё «в WhatsApp».' },
+  regional: { company: '«Тенге Финанс», МФО', category: 'Финансы', label: 'Региональный скептик', hint: 'Недоверие к «чужим» компаниям', rare: false, volumeRange: [90000, 150000],
+    text: 'Ты — ЛПР из Атырау, который с недоверием относится к звонкам от «незнакомых» компаний. Тебе важнее личный контакт и рекомендации знакомых, чем цифры и статистика.' },
+  emotional: { company: '«Айгерим», стоматология', category: 'Стоматологии', label: '⚡ На взводе', hint: 'Может сорваться — держи спокойствие', rare: true, volumeRange: [150000, 250000],
+    text: 'Ты — ЛПР, у которого сегодня тяжёлый день (до этого был неприятный разговор с другим поставщиком). Ты можешь резко ответить или повысить тон, если менеджер давит, но если с тобой говорят спокойно и по делу — постепенно остываешь.' },
+  silent_type: { company: '«Нурлы Жол», грузоперевозки', category: 'Логистика', label: 'Молчун', hint: 'Отвечает односложно, трудно разговорить', rare: false, volumeRange: [70000, 120000],
+    text: 'Ты немногословный ЛПР: отвечаешь коротко, без лишних слов, не сообщаешь ничего сверх заданного вопроса. Менеджеру нужно вытягивать из тебя информацию хорошими открытыми вопросами — на общие фразы отвечай односложно и нейтрально.' },
+  overly_friendly: { company: '«Медовый дом», кондитерская', category: 'Кондитерские', label: 'Дружелюбный уклонист', hint: 'Соглашается на словах, но не подтверждает конкретику', rare: false, volumeRange: [60000, 100000],
+    text: 'Ты очень дружелюбный и позитивный ЛПР, со всем соглашаешься на словах ("да, конечно", "звучит здорово"), но избегаешь конкретики: не называешь точное время, не подтверждаешь детали, уходишь от прямых вопросов через комплименты. Менеджеру нужно добиться от тебя конкретного ответа с деталями, а не просто вежливого согласия.' },
+  tough_negotiator: { company: '«СтройБаза», стройматериалы', category: 'Стройматериалы', label: 'Жёсткий переговорщик', hint: 'Требует цифры и сравнения с конкурентами', rare: false, volumeRange: [180000, 260000],
+    text: 'Ты — опытный переговорщик, который сам когда-то занимался продажами. Ты не грубишь, но методично проверяешь каждый аргумент на прочность: просишь цифры, сравнение с конкурентами, гарантии результата.' },
+  burned_by_2gis: { company: '«Жайна», салон красоты', category: 'Салоны красоты', label: 'Обжёгся на 2ГИС', hint: 'Был реальный негативный опыт именно с 2ГИС', rare: false, volumeRange: [80000, 140000],
+    text: 'У тебя был конкретный негативный опыт именно с 2ГИС: платил(а) за размещение полгода назад, заявок почти не было, а прошлый менеджер перестал выходить на связь после оплаты. Ты не против рекламы вообще, но конкретно к 2ГИС относишься с обидой и недоверием — тебе нужны гарантии и другой подход, а не просто извинения.' },
+  big_chain: { company: '«Дала Маркет», сеть продуктовых магазинов', category: 'Розничные сети', label: 'Крупный сетевой клиент', hint: 'Высокие ставки, решение принимается не сразу', rare: false, volumeRange: [300000, 450000],
+    text: 'Ты представляешь сеть из нескольких точек и привык, что поставщики борются за твоё внимание. Ты вежлив, но подчёркнуто деловой: тебе важны масштабируемость предложения и опыт работы с сетями. Любишь свести разговор к "подумаем и вернёмся", если менеджер не даёт весомых причин решить сейчас.' },
+  analytical_young: { company: '«ФитЗона», сеть фитнес-клубов', category: 'Фитнес', label: 'Дотошный аналитик', hint: 'Молодой, разбирается в цифрах, просит данные', rare: false, volumeRange: [100000, 170000],
+    text: 'Ты молодой и технологически подкованный владелец бизнеса. Тебе не интересны общие слова про "узнаваемость бренда" — ты просишь конкретные цифры: конверсию, стоимость обращения, сравнение каналов. Если менеджер не может ответить на конкретный вопрос по цифрам, прямо указывай на это.' }
+};
+
+const COMMON_TONE = 'Общий настрой: ты не враждебен и не грубишь без повода, но и не соглашаешься легко. Не поддавайся после одной более-менее приличной фразы менеджера — прояви лёгкий скептицизм, задай уточняющий или встречный вопрос, прежде чем двигаться дальше. Соглашайся только когда аргумент менеджера действительно закрывает твой вопрос.';
+
+const FACT_SHEET = 'СПРАВКА О 2ГИС (используй, если менеджер ссылается на подобные факты, и реагируй недоверчиво/заинтересованно в зависимости от того, насколько убедительно он это подаёт): 2ГИС — городской справочник и карты. В Атырау общая ежемесячная аудитория превышает 900 тысяч пользователей (все платформы), больше половины — в мобильном приложении. Есть платное поднятие компании в выдаче рубрики (приоритет и место в рубрике видно конкретно по каждой фирме). Пакеты продвижения продаются на несколько месяцев вперёд (например, есть пакет «Старт медиа»), к размещению часто идёт бонусом бесплатный микросайт на период рекламы. У рекламодателя есть личный кабинет на account.2gis.com. Более 117 тысяч компаний уже размещаются в 2ГИС.';
+
+function difficultyModifier(levelIdx) {
+  if (levelIdx === 1) return 'Дополнительно: будь ощутимо требовательнее обычного — ищи слабые места в аргументах менеджера, минимум дважды переспроси или засомневайся, прежде чем согласиться.';
+  if (levelIdx >= 2) return 'Дополнительно: веди себя как опытный, занятой человек, который повидал много питчей — требуй конкретных цифр и сравнения с альтернативами, не поддавайся на общие фразы, соглашайся только на действительно сильную аргументацию.';
+  return '';
+}
+
+const meetingStages = [
+  { num: 2, name: 'Контакт' }, { num: 3, name: 'Лояльность' }, { num: 4, name: 'Актуализация' },
+  { num: 5, name: 'Потребности' }, { num: 6, name: 'Предложение' }, { num: 7, name: 'Возражения' }, { num: 8, name: 'Завершение' }
+];
+
+const LEADERBOARD_SORTS = [
+  { key: 'volume', label: 'По объёму', dir: 'desc' },
+  { key: 'deals', label: 'По сделкам', dir: 'desc' },
+  { key: 'calls', label: 'По звонкам', dir: 'desc' },
+  { key: 'bestStreak', label: 'Лучшая серия', dir: 'desc' },
+  { key: 'bestBookingMessages', label: 'Быстрее к встрече', dir: 'asc' }
+];
+
+let state = {
+  month: 1, dayInMonth: 1, totalDayCounter: 1,
+  level: 0,
+  lifetime: { calls: 0, meetingsBooked: 0, dealsClosed: 0, volume: 0, bestBookingMessages: null, bestStreak: 0 },
+  currentStreak: 0,
+  monthVolume: 0, prevMonthVolume: 0, newDealsBonusPool: 0,
+  monthPlan: LEVELS[0].planBase,
+  calendar: [],
+  todaysLeads: [],
+  rescheduleNotice: null,
+  mode: 'office',
+  activeLeadRef: null,
+  callMessageCount: 0,
+  messages: [], transcriptLog: [], systemPrompt: '', active: false,
+  levelUpMsg: null,
+  nickname: null
+};
+
+const els = {};
+['topMeta','levelUpBanner','noticeBanner','levelBadge','dayLine','planLine','planBar','planPct',
+ 'kpiCalls','kpiMeetingsBooked','kpiDeals','kpiVolume','kpiStreak','officeView','encounterView',
+ 'monthSummaryView','chatStatus','stageTracker','chatMessages','chatInput','sendBtn','progressBar',
+ 'postCallActions','reviewPanel','leaderboardView','leaderboardBtn','logoutBtn','nicknameMeta',
+ 'authGate','authUsername','authPassword','authSubmit','authError','tabLogin','tabRegister','authTitle'
+].forEach(id => { els[id] = document.getElementById(id); });
+
+function fmt(n) { return Math.round(n).toLocaleString('ru-RU') + ' ₸'; }
+
+function playTone(kind) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if (kind === 'success') {
+      o.frequency.setValueAtTime(523.25, ctx.currentTime);
+      o.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12);
+      o.frequency.setValueAtTime(783.99, ctx.currentTime + 0.24);
+    } else {
+      o.frequency.setValueAtTime(220, ctx.currentTime);
+      o.frequency.setValueAtTime(164.81, ctx.currentTime + 0.15);
+    }
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    o.start(); o.stop(ctx.currentTime + 0.4);
+  } catch (e) { /* аудио недоступно */ }
+}
+
+function pickTodaysArchetypes(pool) {
+  const weighted = [];
+  pool.forEach(code => { const w = archetypeDefs[code].rare ? 2 : 5; for (let i = 0; i < w; i++) weighted.push(code); });
+  const codes = new Set();
+  let guard = 0;
+  while (codes.size < Math.min(2, pool.length) && guard < 50) { codes.add(weighted[Math.floor(Math.random() * weighted.length)]); guard++; }
+  return [...codes];
+}
+
+function refreshSidebar() {
+  const lvl = LEVELS[state.level];
+  els.levelBadge.textContent = lvl.name;
+  els.levelBadge.className = 'level-badge ' + lvl.badgeCls;
+  els.dayLine.textContent = `Месяц ${state.month}, день ${state.dayInMonth} из ${DAYS_PER_MONTH}`;
+  els.topMeta.textContent = `Месяц ${state.month}, день ${state.dayInMonth}`;
+  els.planLine.textContent = `${fmt(state.monthVolume)} из ${fmt(state.monthPlan)}`;
+  els.planBar.style.width = Math.min(100, (state.monthVolume / state.monthPlan) * 100) + '%';
+  els.planPct.textContent = Math.round((state.monthVolume / state.monthPlan) * 100) + '%';
+  els.kpiCalls.textContent = state.lifetime.calls;
+  els.kpiMeetingsBooked.textContent = state.lifetime.meetingsBooked;
+  els.kpiDeals.textContent = state.lifetime.dealsClosed;
+  els.kpiVolume.textContent = fmt(state.lifetime.volume);
+  els.kpiStreak.textContent = state.currentStreak;
+}
+
+function showView(name) {
+  els.officeView.style.display = name === 'office' ? 'block' : 'none';
+  els.encounterView.style.display = name === 'encounter' ? 'flex' : 'none';
+  els.monthSummaryView.style.display = name === 'summary' ? 'block' : 'none';
+  els.leaderboardView.style.display = name === 'leaderboard' ? 'block' : 'none';
+}
+
+function computeNodePositions(count) {
+  const positions = [];
+  if (count === 0) return positions;
+  const usableWidth = 76, startX = 12;
+  for (let i = 0; i < count; i++) {
+    const x = count === 1 ? 50 : startX + (usableWidth * i) / (count - 1);
+    const y = 22 + (i % 2 === 0 ? 0 : 20);
+    positions.push({ x, y });
+  }
+  return positions;
+}
+
+function getTodayNodes() {
+  const leadNodes = state.todaysLeads.map((lead, idx) => ({ kind: 'call', ref: lead, idx }));
+  const meetingNodes = state.calendar.filter(c => c.scheduledDay === state.totalDayCounter).map(c => ({ kind: 'meeting', ref: c }));
+  return [...leadNodes, ...meetingNodes];
+}
+
+function renderOfficeMap() {
+  const nodes = getTodayNodes();
+  const positions = computeNodePositions(nodes.length);
+  const desk = { x: 50, y: 88 };
+  const mapEl = document.getElementById('officeMap');
+  if (!nodes.length) {
+    mapEl.innerHTML = `<div class="map-desk" style="left:${desk.x}%; top:${desk.y}%;">🖥️<span class="node-label">Офис</span></div><div class="empty-note" style="position:absolute; top:38%; left:50%; transform:translateX(-50%); text-align:center;">Сегодня дел нет — можно сразу закончить день.</div>`;
+    return;
+  }
+  const lines = nodes.map((n, i) => `<line x1="${desk.x}" y1="${desk.y}" x2="${positions[i].x}" y2="${positions[i].y}" />`).join('');
+  const nodesHtml = nodes.map((n, i) => {
+    const pos = positions[i];
+    const isCall = n.kind === 'call';
+    const item = isCall ? n.ref : n.ref.lead;
+    const status = n.ref.status;
+    const clickable = status === 'pending';
+    const icon = isCall ? '📞' : '🤝';
+    let statusCls = '';
+    if (status === 'booked' || status === 'success') statusCls = 'node-done-ok';
+    if (status === 'failed') statusCls = 'node-done-fail';
+    const urgentTag = isCall && n.ref.urgent ? '<span class="urgent-dot">🔥</span>' : '';
+    return `
+      <button class="map-node ${statusCls}" style="left:${pos.x}%; top:${pos.y}%;" data-kind="${n.kind}" data-idx="${isCall ? n.idx : ''}" data-cal-id="${!isCall ? n.ref.id : ''}" ${clickable ? '' : 'disabled'}>
+        ${urgentTag}<span class="node-icon">${icon}</span>
+        <span class="node-label">${item.company}</span>
+      </button>`;
+  }).join('');
+  mapEl.innerHTML = `
+    <svg class="map-lines" viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>
+    <div class="map-desk" style="left:${desk.x}%; top:${desk.y}%;">🖥️<span class="node-label">Офис</span></div>
+    <div class="map-avatar" id="mapAvatar" style="left:${desk.x}%; top:${desk.y}%;">🧑‍💼</div>
+    ${nodesHtml}
+  `;
+  mapEl.querySelectorAll('.map-node:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const avatar = document.getElementById('mapAvatar');
+      avatar.style.left = btn.style.left;
+      avatar.style.top = btn.style.top;
+      setTimeout(() => {
+        if (btn.dataset.kind === 'call') startCall(state.todaysLeads[+btn.dataset.idx]);
+        else startMeeting(state.calendar.find(c => c.id === +btn.dataset.calId));
+      }, 450);
+    });
+  });
+}
+
+function renderOffice() {
+  showView('office');
+  if (state.levelUpMsg) { els.levelUpBanner.style.display = 'block'; els.levelUpBanner.textContent = state.levelUpMsg; state.levelUpMsg = null; }
+  else els.levelUpBanner.style.display = 'none';
+  if (state.rescheduleNotice) { els.noticeBanner.style.display = 'block'; els.noticeBanner.textContent = state.rescheduleNotice; state.rescheduleNotice = null; }
+  else els.noticeBanner.style.display = 'none';
+  refreshSidebar();
+  els.officeView.style.animation = 'none'; void els.officeView.offsetWidth; els.officeView.style.animation = null;
+  els.officeView.innerHTML = `
+    <h2>Карта дня</h2>
+    <div class="office-map" id="officeMap"></div>
+    <div class="next-day-row"><button class="btn-secondary" id="nextDayBtn">Следующий день →</button></div>
+  `;
+  renderOfficeMap();
+  document.getElementById('nextDayBtn').addEventListener('click', nextDay);
+}
+
+function maybeRescheduleMeeting() {
+  state.calendar.filter(c => c.scheduledDay === state.totalDayCounter && c.status === 'pending').forEach(item => {
+    if (Math.random() < 0.2) {
+      item.scheduledDay += 1;
+      state.rescheduleNotice = `Клиент «${item.lead.company}» попросил перенести встречу на день ${item.scheduledDay}.`;
+    }
+  });
+}
+
+function startNewDay() {
+  const pool = LEVELS[state.level].archetypes;
+  const codes = pickTodaysArchetypes(pool);
+  state.todaysLeads = codes.map(code => ({ archetypeCode: code, status: 'pending', ...archetypeDefs[code] }));
+  if (state.todaysLeads.length && Math.random() < 0.35) {
+    state.todaysLeads[Math.floor(Math.random() * state.todaysLeads.length)].urgent = true;
+  }
+  maybeRescheduleMeeting();
+  renderOffice();
+  saveState();
+}
+
+function nextDay() {
+  state.totalDayCounter += 1;
+  state.dayInMonth += 1;
+  if (state.dayInMonth > DAYS_PER_MONTH) renderMonthSummary();
+  else startNewDay();
+}
+
+const VOLUME_BONUS_TABLE = [{ threshold: 120, value: 3.5 }, { threshold: 110, value: 3.0 }, { threshold: 100, value: 2.5 }, { threshold: 90, value: 2.0 }];
+const GROWTH_BONUS_TABLE = [{ threshold: 100, value: 35 }, { threshold: 90, value: 25 }];
+function bonusPercentFromTable(pct, table) { for (const row of table) { if (pct >= row.threshold) return row.value; } return 0; }
+
+function renderMonthSummary() {
+  showView('summary');
+  const planPct = (state.monthVolume / state.monthPlan) * 100;
+  const volumeBonus = state.monthVolume * bonusPercentFromTable(planPct, VOLUME_BONUS_TABLE) / 100;
+  let growthBonus = 0;
+  if (state.prevMonthVolume > 0) {
+    const growthAmount = Math.max(0, state.monthVolume - state.prevMonthVolume);
+    growthBonus = growthAmount * bonusPercentFromTable((growthAmount / state.prevMonthVolume) * 100, GROWTH_BONUS_TABLE) / 100;
+  }
+  const total = volumeBonus + growthBonus + state.newDealsBonusPool;
+  els.monthSummaryView.innerHTML = `
+    <h2>Итоги месяца ${state.month}</h2>
+    <div class="summary-row"><span>Выполнение плана</span><strong>${Math.round(planPct)}% (${fmt(state.monthVolume)} из ${fmt(state.monthPlan)})</strong></div>
+    <div class="summary-row"><span>Бонус за объём/оплаты (упрощённо)</span><strong>${fmt(volumeBonus)}</strong></div>
+    <div class="summary-row"><span>Бонус за прирост объёма</span><strong>${state.prevMonthVolume > 0 ? fmt(growthBonus) : '— (первый месяц)'}</strong></div>
+    <div class="summary-row"><span>Бонус за новые продажи</span><strong>${fmt(state.newDealsBonusPool)}</strong></div>
+    <div class="summary-row total"><span>Итого бонус</span><strong>${fmt(total)}</strong></div>
+    <div class="next-day-row" style="margin-top:20px;"><button class="btn-primary" id="newMonthBtn">Начать новый месяц →</button></div>
+  `;
+  document.getElementById('newMonthBtn').addEventListener('click', () => {
+    state.month += 1; state.dayInMonth = 1;
+    state.prevMonthVolume = state.monthVolume; state.monthVolume = 0; state.newDealsBonusPool = 0;
+    state.monthPlan = LEVELS[state.level].planBase;
+    startNewDay();
+  });
+}
+
+function checkLevelUp() {
+  let newIdx = 0;
+  for (let i = 0; i < LEVELS.length; i++) { if (state.lifetime.dealsClosed >= LEVELS[i].dealsRequired) newIdx = i; }
+  if (newIdx > state.level) { state.level = newIdx; state.levelUpMsg = `Новый уровень: ${LEVELS[newIdx].name}! Открылись новые типы клиентов.`; }
+}
+
+function speakerLabel(speaker, lead) { return speaker === 'gatekeeper' ? 'Сотрудник компании' : lead.label.replace('⚡ ', ''); }
+
+function appendBubble(role, text, label) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = (label ? `<div class="label">${label}</div>` : '') + `<div class="bubble"></div>`;
+  div.querySelector('.bubble').textContent = text;
+  els.chatMessages.appendChild(div);
+  els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+  return div;
+}
+function showTyping() { return appendBubble('client typing', '…'); }
+function setInputEnabled(enabled) { els.chatInput.disabled = !enabled; els.sendBtn.disabled = !enabled; if (enabled) els.chatInput.focus(); }
+
+function renderStageTracker(currentStage) {
+  if (state.mode !== 'meeting') { els.stageTracker.classList.remove('visible'); return; }
+  els.stageTracker.classList.add('visible');
+  els.stageTracker.innerHTML = meetingStages.map(s => {
+    let cls = 'stage-pill';
+    if (currentStage && s.num < currentStage) cls += ' done';
+    if (currentStage && s.num === currentStage) cls += ' active';
+    return `<span class="${cls}">${s.num - 1}. ${s.name}</span>`;
+  }).join('');
+}
+
+function buildPostCallActions(buttons) {
+  els.postCallActions.innerHTML = '';
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = b.cls; btn.textContent = b.label;
+    btn.addEventListener('click', b.onClick);
+    els.postCallActions.appendChild(btn);
+  });
+  els.postCallActions.style.display = 'flex';
+}
+
+function buildCallSystemPrompt(lead) {
+  return `Ты — движок ролевой игры для тренировки менеджеров по продажам рекламы 2GIS (Казахстан, Атырау). Ты играешь ДВЕ роли по очереди в рамках одного телефонного звонка, а пользователь — менеджер по продажам, который пытается дозвониться до ЛПР в компании «${lead.company}» (категория: ${lead.category}) и назначить встречу.
+
+${COMMON_TONE} ${difficultyModifier(state.level)}
+
+${FACT_SHEET}
+
+ЭТАП 1 — СОТРУДНИК (speaker: "gatekeeper"). Сначала трубку берёт случайный сотрудник компании, который не занимается рекламой и не обязан помогать. Он НЕ ДОЛЖЕН сразу соединять с ЛПР. Подними 1-2 возражения из набора (выбирай разные от раза к разу): «я могу передать сама/сам», «скиньте информацию в WhatsApp», «не могу дать номер/переключить», «его сейчас нет на месте», «а вы по какому вопросу, мы такое не заказывали», «перезвоните после обеда». Если менеджер убедительно объясняет, почему разговор важен именно с ЛПР, и вежливо настаивает — после 1-2 таких раундов соедини его с ЛПР (смени speaker на "lpr").
+
+ЭТАП 2 — ЛПР (speaker: "lpr"). ${lead.text} Твоя задача — сначала отреагировать на инфоповод менеджера (данные о компании, статистика по рубрике — например, на каком ты сейчас месте в выдаче своей рубрики), затем поднять 1-2 возражения против встречи из набора (выбирай разные от раза к разу): «скажите сейчас по телефону», «отправьте в WhatsApp», «у меня нет времени», «я подумаю и сам перезвоню», «сейчас не сезон для рекламы», «у меня уже есть похожий подрядчик». Если менеджер хорошо отрабатывает возражения и предлагает конкретное время — соглашайся на встречу (outcome: "meeting_booked"). Если менеджер долго повторяет одно и то же или ведёт себя навязчиво/грубо — заканчивай звонок отказом (outcome: "call_failed").
+
+ВАЖНЫЕ ПРАВИЛА:
+- Отвечай КОРОТКО, как в живом телефонном разговоре (1-3 предложения), разговорным русским языком.
+- Никогда не выходи из роли и не давай менеджеру советов от себя.
+- Всегда отвечай ТОЛЬКО в формате JSON, без markdown и пояснений вокруг:
+{"speaker": "gatekeeper" | "lpr", "reply": "текст реплики клиента", "progress": число от 0 до 100, "outcome": "in_progress" | "meeting_booked" | "call_failed"}
+- outcome может быть "meeting_booked" или "call_failed" ТОЛЬКО на этапе ЛПР.`;
+}
+
+function buildMeetingSystemPrompt(lead) {
+  return `Ты — движок ролевой игры для тренировки менеджеров по продажам рекламы 2GIS. Ты играешь роль ЛПР компании «${lead.company}» (категория: ${lead.category}) на личной встрече, которая проходит по итогам успешного звонка. ${lead.text}
+
+${COMMON_TONE} ${difficultyModifier(state.level)}
+
+${FACT_SHEET}
+
+Встреча проходит по стандарту 2GIS — «8-этапке». Этап 1 (подготовка) уже прошёл до встречи. Этапы:
+
+2. Установление контакта — менеджер здоровается, делает комплимент бизнесу, ведёт small talk. Переходи дальше, когда ты вовлечён(а), задаёшь вопросы, поддерживаешь диалог.
+3. Формирование лояльности — менеджер рассказывает про 2GIS и его функции (например, личный кабинет на account.2gis.com, бесплатный микросайт бонусом к размещению, то, что уже больше 117 тысяч компаний размещаются в 2ГИС). Переходи дальше, когда подтверждаешь, что будешь пользоваться сервисом.
+4. Актуализация информации — менеджер сверяет данные компании и рубрики размещения. Переходи дальше, когда подтверждаешь корректность данных.
+5. Выявление потребностей — менеджер спрашивает, что ты продаёшь, кому, критерии выбора рекламы и ожидания. Переходи дальше, когда честно ответил(а) на несколько таких вопросов.
+6. Предложение — менеджер презентует решение под твою потребность: конкретный пакет (например, «Старт медиа»), реальные цифры аудитории по городу, твоё текущее место в выдаче рубрики. Если менеджер говорит общими фразами без конкретики — переспроси цифры. Переходи дальше, когда задаёшь уточняющие вопросы и понимаешь суть пакета.
+7. Работа с возражениями — подними 1-2 реалистичных возражения (дорого / нужно посоветоваться / сомнения в эффективности / изредка — «конкурент предложил дешевле или лучше»). Переходи дальше, когда менеджер снимает возражение через контрольный вопрос.
+8. Завершение — если этапы пройдены нормально, соглашайся на сделку (outcome: "meeting_success"). Если менеджер проваливал этапы или давил — заверши без сделки (outcome: "meeting_failed").
+
+ВАЖНЫЕ ПРАВИЛА:
+- Отвечай КОРОТКО и естественно (1-3 предложения).
+- Не переходи на следующий этап, если критерий текущего явно не выполнен.
+- Всегда отвечай ТОЛЬКО в формате JSON: {"stage": число от 2 до 8, "stage_name": "название этапа", "reply": "текст реплики", "progress": число от 0 до 100, "outcome": "in_progress" | "meeting_success" | "meeting_failed"}
+- outcome может быть "meeting_success" или "meeting_failed" ТОЛЬКО на этапе 8.`;
+}
+
+async function startCall(lead) {
+  state.mode = 'call'; state.activeLeadRef = lead; state.callMessageCount = 0;
+  state.messages = [{ role: 'user', content: `[Звонок только что соединился, ты снимаешь трубку в компании «${lead.company}».]` }];
+  state.transcriptLog = []; state.active = true;
+  state.systemPrompt = buildCallSystemPrompt(lead);
+  showView('encounter');
+  els.chatMessages.innerHTML = '';
+  els.reviewPanel.style.display = 'none'; els.reviewPanel.innerHTML = '';
+  els.postCallActions.style.display = 'none';
+  els.progressBar.style.width = '0%';
+  renderStageTracker(null);
+  els.chatStatus.className = 'chat-header';
+  els.chatStatus.textContent = `Звонок: ${lead.company}`;
+  els.leaderboardBtn.disabled = true;
+  setInputEnabled(false);
+  await requestClientTurn();
+}
+
+async function startMeeting(calendarItem) {
+  state.mode = 'meeting'; state.activeLeadRef = calendarItem;
+  const lead = calendarItem.lead;
+  state.messages = [{ role: 'user', content: `[Встреча началась, менеджер входит в кабинет клиента в компании «${lead.company}».]` }];
+  state.transcriptLog = []; state.active = true;
+  state.systemPrompt = buildMeetingSystemPrompt(lead);
+  showView('encounter');
+  els.chatMessages.innerHTML = '';
+  els.reviewPanel.style.display = 'none'; els.reviewPanel.innerHTML = '';
+  els.postCallActions.style.display = 'none';
+  els.progressBar.style.width = '0%';
+  renderStageTracker(2);
+  els.chatStatus.className = 'chat-header';
+  els.chatStatus.textContent = `Встреча: ${lead.company}`;
+  els.leaderboardBtn.disabled = true;
+  setInputEnabled(false);
+  await requestClientTurn();
+}
+
+async function requestClientTurn() {
+  const typingEl = showTyping();
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ max_tokens: 1000, system: state.systemPrompt, messages: state.messages })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Ошибка сервера');
+    const rawText = (data.content || []).map(b => b.text || '').join('\n');
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+    let parsed;
+    try { parsed = JSON.parse(cleaned); }
+    catch (e) {
+      parsed = state.mode === 'call'
+        ? { speaker: 'lpr', reply: cleaned || 'Алло? Не расслышал(а), повторите?', progress: 0, outcome: 'in_progress' }
+        : { stage: 2, stage_name: 'Контакт', reply: cleaned || 'Извините, повторите?', progress: 0, outcome: 'in_progress' };
+    }
+    typingEl.remove();
+    state.messages.push({ role: 'assistant', content: cleaned });
+    const lead = state.mode === 'call' ? state.activeLeadRef : state.activeLeadRef.lead;
+    if (state.mode === 'call') {
+      const label = speakerLabel(parsed.speaker, lead);
+      appendBubble('client', parsed.reply, label);
+      state.transcriptLog.push({ who: label, text: parsed.reply });
+    } else {
+      const label = lead.label.replace('⚡ ', '');
+      appendBubble('client', parsed.reply, label);
+      state.transcriptLog.push({ who: label, text: parsed.reply });
+      renderStageTracker(parsed.stage || 2);
+    }
+    if (typeof parsed.progress === 'number') els.progressBar.style.width = Math.max(0, Math.min(100, parsed.progress)) + '%';
+    handleOutcome(parsed.outcome);
+  } catch (err) {
+    typingEl.remove();
+    console.error(err);
+    appendBubble('client system', 'Ошибка соединения с сервером. Попробуй отправить сообщение ещё раз.');
+    setInputEnabled(true);
+  }
+}
+
+function handleOutcome(outcome) {
+  if (outcome === 'meeting_booked' || outcome === 'meeting_success') endEncounter(true);
+  else if (outcome === 'call_failed' || outcome === 'meeting_failed') endEncounter(false);
+  else setInputEnabled(true);
+}
+
+function randomVolume(range) { const [min, max] = range; return Math.round((min + Math.random() * (max - min)) / 5000) * 5000; }
+
+function endEncounter(success) {
+  state.active = false; setInputEnabled(false);
+  const isCall = state.mode === 'call';
+
+  if (success) { state.currentStreak += 1; state.lifetime.bestStreak = Math.max(state.lifetime.bestStreak, state.currentStreak); }
+  else state.currentStreak = 0;
+
+  if (isCall) {
+    const lead = state.activeLeadRef;
+    state.lifetime.calls += 1;
+    lead.status = success ? 'booked' : 'failed';
+    if (success) {
+      state.lifetime.meetingsBooked += 1;
+      if (state.lifetime.bestBookingMessages === null || state.callMessageCount < state.lifetime.bestBookingMessages) {
+        state.lifetime.bestBookingMessages = state.callMessageCount;
+      }
+      const scheduledDay = state.totalDayCounter + 1 + Math.floor(Math.random() * 2);
+      state.calendar.push({ id: Date.now(), lead: lead, scheduledDay, status: 'pending' });
+      els.chatStatus.className = 'chat-header success';
+      els.chatStatus.textContent = `Встреча назначена на день ${scheduledDay}!`;
+    } else {
+      els.chatStatus.className = 'chat-header fail';
+      els.chatStatus.textContent = 'Клиент отказался. Звонок сорван.';
+    }
+  } else {
+    const calendarItem = state.activeLeadRef;
+    calendarItem.status = success ? 'success' : 'failed';
+    if (success) {
+      const vol = randomVolume(calendarItem.lead.volumeRange);
+      state.lifetime.dealsClosed += 1; state.lifetime.volume += vol; state.monthVolume += vol;
+      state.newDealsBonusPool += vol * 0.30;
+      checkLevelUp();
+      els.chatStatus.className = 'chat-header success';
+      els.chatStatus.textContent = `Сделка закрыта! Объём: ${fmt(vol)}`;
+    } else {
+      els.chatStatus.className = 'chat-header fail';
+      els.chatStatus.textContent = 'Встреча прошла без сделки.';
+    }
+  }
+  refreshSidebar();
+  saveState();
+  els.leaderboardBtn.disabled = false;
+
+  playTone(success ? 'success' : 'fail');
+  els.chatStatus.classList.remove('pulse-success', 'shake-fail');
+  void els.chatStatus.offsetWidth;
+  els.chatStatus.classList.add(success ? 'pulse-success' : 'shake-fail');
+
+  buildPostCallActions([
+    { label: 'Показать разбор', cls: 'btn-secondary', onClick: showReview },
+    { label: 'Вернуться в офис', cls: 'btn-primary', onClick: renderOffice }
+  ]);
+}
+
+async function sendMessage() {
+  const text = els.chatInput.value.trim();
+  if (!text || !state.active) return;
+  if (state.mode === 'call') state.callMessageCount += 1;
+  appendBubble('manager', text, 'Ты');
+  state.transcriptLog.push({ who: 'Менеджер', text });
+  state.messages.push({ role: 'user', content: text });
+  els.chatInput.value = '';
+  setInputEnabled(false);
+  await requestClientTurn();
+}
+
+async function showReview() {
+  const btn = [...els.postCallActions.children].find(b => b.textContent.includes('разбор'));
+  if (btn) { btn.disabled = true; btn.textContent = 'Готовлю разбор…'; }
+  els.reviewPanel.style.display = 'block';
+  els.reviewPanel.textContent = 'Секунду…';
+  const transcript = state.transcriptLog.map(t => `${t.who}: ${t.text}`).join('\n');
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        max_tokens: 500,
+        system: 'Ты — опытный тренер по продажам 2GIS. Тебе дают текст диалога (звонка или встречи) между менеджером и клиентом. Дай короткий дружелюбный разбор на русском: что сработало хорошо, что стоило сказать иначе, и один совет на будущее. 4-6 предложений, без списков и заголовков.',
+        messages: [{ role: 'user', content: transcript }]
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Ошибка сервера');
+    const text = (data.content || []).map(b => b.text || '').join('\n').trim();
+    els.reviewPanel.textContent = text || 'Не удалось получить разбор, попробуй ещё раз.';
+  } catch (err) {
+    console.error(err);
+    els.reviewPanel.textContent = 'Ошибка при получении разбора. Попробуй ещё раз.';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Показать разбор'; }
+  }
+}
+
+let leaderboardSortKey = 'volume';
+
+function renderLeaderboard() {
+  showView('leaderboard');
+  els.leaderboardView.innerHTML = '<p class="empty-note">Загружаю таблицу лидеров…</p>';
+  loadLeaderboard();
+}
+
+async function loadLeaderboard() {
+  let entries = [];
+  try {
+    const res = await fetch('/api/leaderboard');
+    const data = await res.json();
+    entries = data.entries || [];
+  } catch (e) { console.error('Не удалось загрузить таблицу лидеров', e); }
+  renderLeaderboardTable(entries);
+}
+
+function renderLeaderboardTable(entries) {
+  const def = LEADERBOARD_SORTS.find(s => s.key === leaderboardSortKey) || LEADERBOARD_SORTS[0];
+  const sorted = [...entries].sort((a, b) => {
+    let av = a[def.key], bv = b[def.key];
+    if (av === undefined || av === null) av = def.dir === 'asc' ? Infinity : -Infinity;
+    if (bv === undefined || bv === null) bv = def.dir === 'asc' ? Infinity : -Infinity;
+    return def.dir === 'asc' ? av - bv : bv - av;
+  });
+  const sortButtons = LEADERBOARD_SORTS.map(s => `<button class="btn-secondary btn-small${s.key === leaderboardSortKey ? ' active-sort' : ''}" data-sort="${s.key}">${s.label}</button>`).join('');
+  const levelNames = ['Junior', 'Middle', 'Senior', 'Руководитель'];
+  const rowsHtml = sorted.length ? sorted.map((e, i) => `
+    <div class="lead-row${e.nickname === state.nickname ? ' me-row' : ''}">
+      <div>
+        <span class="tag">#${i + 1} · ${levelNames[e.level] || 'Junior'}</span>
+        <h4>${e.nickname}${e.nickname === state.nickname ? ' (ты)' : ''}</h4>
+        <p>Объём: ${fmt(e.volume || 0)} · Сделок: ${e.deals || 0} · Звонков: ${e.calls || 0} · Серия: ${e.bestStreak || 0} · Быстрее встреча: ${e.bestBookingMessages != null ? e.bestBookingMessages + ' сообщ.' : '—'}</p>
+      </div>
+    </div>`).join('') : '<div class="empty-note">Пока никого в таблице — сыграй первым!</div>';
+  els.leaderboardView.innerHTML = `
+    <h2>Таблица лидеров</h2>
+    <p class="empty-note" style="padding-top:0;">Общая для всей команды. Обновляется после каждой сделки.</p>
+    <div class="post-call-actions" style="padding:0 0 16px;">${sortButtons}</div>
+    <div class="lead-list">${rowsHtml}</div>
+    <div class="next-day-row"><button class="btn-primary" id="backToOfficeBtn">← Вернуться в офис</button></div>
+  `;
+  els.leaderboardView.querySelectorAll('[data-sort]').forEach(btn => {
+    btn.addEventListener('click', () => { leaderboardSortKey = btn.dataset.sort; renderLeaderboardTable(entries); });
+  });
+  document.getElementById('backToOfficeBtn').addEventListener('click', renderOffice);
+}
+
+function serializeState() {
+  return {
+    month: state.month, dayInMonth: state.dayInMonth, totalDayCounter: state.totalDayCounter,
+    level: state.level, lifetime: state.lifetime, currentStreak: state.currentStreak,
+    monthVolume: state.monthVolume, prevMonthVolume: state.prevMonthVolume, newDealsBonusPool: state.newDealsBonusPool,
+    monthPlan: state.monthPlan, calendar: state.calendar, todaysLeads: state.todaysLeads
+  };
+}
+
+async function saveState() {
+  try {
+    await fetch('/api/state', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: serializeState() })
+    });
+  } catch (e) { console.error('Не удалось сохранить прогресс', e); }
+}
+
+function applyLoadedState(s) {
+  Object.assign(state, {
+    month: s.month, dayInMonth: s.dayInMonth, totalDayCounter: s.totalDayCounter, level: s.level,
+    lifetime: s.lifetime, currentStreak: s.currentStreak, monthVolume: s.monthVolume,
+    prevMonthVolume: s.prevMonthVolume, newDealsBonusPool: s.newDealsBonusPool,
+    monthPlan: s.monthPlan, calendar: s.calendar || [], todaysLeads: s.todaysLeads || []
+  });
+}
+
+async function bootAfterAuth() {
+  els.authGate.style.display = 'none';
+  els.logoutBtn.style.display = 'inline-block';
+  els.nicknameMeta.textContent = `Игрок: ${state.nickname}`;
+  try {
+    const res = await fetch('/api/state');
+    const data = await res.json();
+    applyLoadedState(data.state);
+  } catch (e) { console.error('Не удалось загрузить прогресс', e); }
+  const isFreshAccount = state.totalDayCounter === 1 && state.lifetime.calls === 0 && state.todaysLeads.length === 0 && state.calendar.length === 0;
+  if (isFreshAccount) startNewDay();
+  else renderOffice();
+}
+
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/me');
+    const data = await res.json();
+    if (data.user) { state.nickname = data.user.username; await bootAfterAuth(); return; }
+  } catch (e) { /* сервер недоступен — покажем форму входа */ }
+  els.authGate.style.display = 'flex';
+}
+
+let authMode = 'login';
+function setAuthMode(mode) {
+  authMode = mode;
+  els.tabLogin.classList.toggle('active', mode === 'login');
+  els.tabRegister.classList.toggle('active', mode === 'register');
+  els.authTitle.textContent = mode === 'login' ? 'Вход' : 'Регистрация';
+  els.authSubmit.textContent = mode === 'login' ? 'Войти' : 'Создать аккаунт';
+  els.authError.textContent = '';
+}
+
+async function submitAuth() {
+  const username = els.authUsername.value.trim();
+  const password = els.authPassword.value;
+  els.authError.textContent = '';
+  if (!username || !password) { els.authError.textContent = 'Заполни оба поля'; return; }
+  els.authSubmit.disabled = true;
+  try {
+    const res = await fetch(authMode === 'login' ? '/api/login' : '/api/register', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) { els.authError.textContent = data.error || 'Ошибка'; return; }
+    state.nickname = data.username;
+    await bootAfterAuth();
+  } catch (e) {
+    els.authError.textContent = 'Не удалось связаться с сервером';
+  } finally {
+    els.authSubmit.disabled = false;
+  }
+}
+
+async function logout() {
+  try { await fetch('/api/logout', { method: 'POST' }); } catch (e) {}
+  location.reload();
+}
+
+els.sendBtn.addEventListener('click', sendMessage);
+els.chatInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+els.leaderboardBtn.addEventListener('click', renderLeaderboard);
+els.logoutBtn.addEventListener('click', logout);
+els.tabLogin.addEventListener('click', () => setAuthMode('login'));
+els.tabRegister.addEventListener('click', () => setAuthMode('register'));
+els.authSubmit.addEventListener('click', submitAuth);
+els.authPassword.addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+
+checkAuth();
+</script>
+</body>
+</html>
