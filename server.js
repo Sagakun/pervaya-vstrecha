@@ -3,23 +3,30 @@ const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 
-const db = new Database(path.join(__dirname, 'data.sqlite'));
-db.pragma('journal_mode = WAL');
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    created_at INTEGER NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS game_state (
-    user_id INTEGER PRIMARY KEY REFERENCES users(id),
-    state_json TEXT NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-`);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
+
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at BIGINT NOT NULL
+    );
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_state (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id),
+      state_json TEXT NOT NULL,
+      updated_at BIGINT NOT NULL
+    );
+  `);
+}
 
 const app = express();
 app.set('trust proxy', 1);
@@ -56,33 +63,50 @@ const USERNAME_RE = /^[a-zA-Zа-яА-ЯёЁ0-9_\- ]{2,32}$/;
 // --- Auth ---
 
 app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'Укажи имя и пароль' });
-  if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Имя: 2-32 символа (буквы, цифры, пробел, дефис)' });
-  if (String(password).length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'Укажи имя и пароль' });
+    if (!USERNAME_RE.test(username)) return res.status(400).json({ error: 'Имя: 2-32 символа (буквы, цифры, пробел, дефис)' });
+    if (String(password).length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
 
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (existing) return res.status(409).json({ error: 'Это имя уже занято' });
+    const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existing.rows.length) return res.status(409).json({ error: 'Это имя уже занято' });
 
-  const hash = await bcrypt.hash(password, 10);
-  const info = db.prepare('INSERT INTO users (username, password_hash, created_at) VALUES (?, ?, ?)').run(username, hash, Date.now());
-  db.prepare('INSERT INTO game_state (user_id, state_json, updated_at) VALUES (?, ?, ?)')
-    .run(info.lastInsertRowid, JSON.stringify(defaultState()), Date.now());
+    const hash = await bcrypt.hash(password, 10);
+    const inserted = await pool.query(
+      'INSERT INTO users (username, password_hash, created_at) VALUES ($1, $2, $3) RETURNING id',
+      [username, hash, Date.now()]
+    );
+    const userId = inserted.rows[0].id;
+    await pool.query(
+      'INSERT INTO game_state (user_id, state_json, updated_at) VALUES ($1, $2, $3)',
+      [userId, JSON.stringify(defaultState()), Date.now()]
+    );
 
-  req.session.userId = info.lastInsertRowid;
-  req.session.username = username;
-  res.json({ username });
+    req.session.userId = userId;
+    req.session.username = username;
+    res.json({ username });
+  } catch (err) {
+    console.error('Ошибка регистрации:', err);
+    res.status(500).json({ error: 'Ошибка сервера при регистрации' });
+  }
 });
 
 app.post('/api/login', async (req, res) => {
-  const { username, password } = req.body || {};
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username || '');
-  if (!user) return res.status(401).json({ error: 'Неверное имя или пароль' });
-  const ok = await bcrypt.compare(password || '', user.password_hash);
-  if (!ok) return res.status(401).json({ error: 'Неверное имя или пароль' });
-  req.session.userId = user.id;
-  req.session.username = user.username;
-  res.json({ username: user.username });
+  try {
+    const { username, password } = req.body || {};
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username || '']);
+    const user = result.rows[0];
+    if (!user) return res.status(401).json({ error: 'Неверное имя или пароль' });
+    const ok = await bcrypt.compare(password || '', user.password_hash);
+    if (!ok) return res.status(401).json({ error: 'Неверное имя или пароль' });
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    res.json({ username: user.username });
+  } catch (err) {
+    console.error('Ошибка входа:', err);
+    res.status(500).json({ error: 'Ошибка сервера при входе' });
+  }
 });
 
 app.post('/api/logout', (req, res) => {
@@ -96,43 +120,59 @@ app.get('/api/me', (req, res) => {
 
 // --- Game state ---
 
-app.get('/api/state', requireAuth, (req, res) => {
-  const row = db.prepare('SELECT state_json FROM game_state WHERE user_id = ?').get(req.session.userId);
-  res.json({ state: row ? JSON.parse(row.state_json) : defaultState() });
+app.get('/api/state', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT state_json FROM game_state WHERE user_id = $1', [req.session.userId]);
+    const row = result.rows[0];
+    res.json({ state: row ? JSON.parse(row.state_json) : defaultState() });
+  } catch (err) {
+    console.error('Ошибка чтения прогресса:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
-app.post('/api/state', requireAuth, (req, res) => {
-  const { state } = req.body || {};
-  if (!state) return res.status(400).json({ error: 'Нет данных состояния' });
-  db.prepare(`
-    INSERT INTO game_state (user_id, state_json, updated_at) VALUES (?, ?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET state_json = excluded.state_json, updated_at = excluded.updated_at
-  `).run(req.session.userId, JSON.stringify(state), Date.now());
-  res.json({ ok: true });
+app.post('/api/state', requireAuth, async (req, res) => {
+  try {
+    const { state } = req.body || {};
+    if (!state) return res.status(400).json({ error: 'Нет данных состояния' });
+    await pool.query(`
+      INSERT INTO game_state (user_id, state_json, updated_at) VALUES ($1, $2, $3)
+      ON CONFLICT (user_id) DO UPDATE SET state_json = EXCLUDED.state_json, updated_at = EXCLUDED.updated_at
+    `, [req.session.userId, JSON.stringify(state), Date.now()]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Ошибка сохранения прогресса:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 // --- Leaderboard (публичный, чтобы вся команда видела рейтинг) ---
 
-app.get('/api/leaderboard', (req, res) => {
-  const rows = db.prepare(`
-    SELECT u.username as username, g.state_json as state_json
-    FROM game_state g JOIN users u ON u.id = g.user_id
-  `).all();
-  const entries = rows.map(r => {
-    try {
-      const s = JSON.parse(r.state_json);
-      return {
-        nickname: r.username,
-        volume: (s.lifetime && s.lifetime.volume) || 0,
-        deals: (s.lifetime && s.lifetime.dealsClosed) || 0,
-        calls: (s.lifetime && s.lifetime.calls) || 0,
-        bestStreak: (s.lifetime && s.lifetime.bestStreak) || 0,
-        bestBookingMessages: s.lifetime ? s.lifetime.bestBookingMessages : null,
-        level: s.level || 0
-      };
-    } catch (e) { return null; }
-  }).filter(Boolean);
-  res.json({ entries });
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT u.username as username, g.state_json as state_json
+      FROM game_state g JOIN users u ON u.id = g.user_id
+    `);
+    const entries = result.rows.map(r => {
+      try {
+        const s = JSON.parse(r.state_json);
+        return {
+          nickname: r.username,
+          volume: (s.lifetime && s.lifetime.volume) || 0,
+          deals: (s.lifetime && s.lifetime.dealsClosed) || 0,
+          calls: (s.lifetime && s.lifetime.calls) || 0,
+          bestStreak: (s.lifetime && s.lifetime.bestStreak) || 0,
+          bestBookingMessages: s.lifetime ? s.lifetime.bestBookingMessages : null,
+          level: s.level || 0
+        };
+      } catch (e) { return null; }
+    }).filter(Boolean);
+    res.json({ entries });
+  } catch (err) {
+    console.error('Ошибка чтения лидерборда:', err);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
 });
 
 // --- Прокси к Claude API (ключ хранится только на сервере) ---
@@ -170,4 +210,11 @@ app.post('/api/chat', requireAuth, async (req, res) => {
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Сервер «Первая встреча» запущен на порту ${PORT}`));
+initDb()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Сервер «Первая встреча» запущен на порту ${PORT}`));
+  })
+  .catch(err => {
+    console.error('Не удалось инициализировать базу данных:', err);
+    process.exit(1);
+  });
